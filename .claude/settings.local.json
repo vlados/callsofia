@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:call.sofia.bg)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run test-connection:*)",
+      "Bash(curl:*)",
+      "Bash(sqlite3:*)",
+      "Bash(npm run stats:*)",
+      "Bash(npm run scrape:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
