@@ -57,6 +57,9 @@ npm run scrape -- --resume
 
 # Custom range with options
 npm run scrape -- --start 100000 --end 200000 --concurrency 10 --delay 100
+
+# Skip already scraped IDs
+npm run scrape -- --start 1 --end 100000 --skip-existing
 ```
 
 ### 5. Export data
@@ -66,10 +69,9 @@ npm run scrape -- --start 100000 --end 200000 --concurrency 10 --delay 100
 npm run export
 
 # Export only bicycle infrastructure signals
-npm run export:bicycle
+npm run export -- --subcategory 30271 --format json
 
 # Export with filters
-npm run export -- --subcategory 30271 --format csv
 npm run export -- --district "Младост" --format json
 npm run export -- --start-date 2023-01-01 --end-date 2023-12-31
 ```
@@ -78,6 +80,26 @@ npm run export -- --start-date 2023-01-01 --end-date 2023-12-31
 
 ```bash
 npm run stats
+```
+
+## Project Structure
+
+```
+callsofia/
+├── src/
+│   ├── client.ts      # HTTP client with authentication
+│   ├── database.ts    # SQLite database operations
+│   ├── parser.ts      # HTML parsing logic
+│   ├── scraper.ts     # Main scraper CLI
+│   ├── export.ts      # Data export CLI
+│   ├── stats.ts       # Statistics CLI
+│   └── types.ts       # TypeScript interfaces
+├── data/
+│   └── signals.db     # SQLite database (created on first run)
+├── exports/           # Exported data files
+├── .env               # Authentication cookies (not committed)
+├── .env.example       # Example environment file
+└── package.json
 ```
 
 ## Category IDs
@@ -142,15 +164,15 @@ Each signal contains:
 | Field | Type | Description |
 |-------|------|-------------|
 | id | number | Signal ID (auto-increment) |
-| registrationNumber | string | Official registration number |
+| registrationNumber | string | Official registration number (e.g., СОА24-КЦ01-85321) |
 | registrationDate | string | Date/time of registration |
 | categoryId | number | Main category ID |
 | categoryName | string | Category name |
 | subcategoryId | number | Subcategory ID |
 | subcategoryName | string | Subcategory name |
 | status | string | Current status |
-| district | string | District name |
-| neighborhood | string | Neighborhood/quarter |
+| district | string | District name (e.g., "район Младост") |
+| neighborhood | string | Neighborhood/quarter (e.g., "ж.к. Младост 3") |
 | address | string | Street address |
 | latitude | number | GPS latitude |
 | longitude | number | GPS longitude |
@@ -163,20 +185,62 @@ Each signal contains:
 The SQLite database (`data/signals.db`) contains:
 
 - `signals` - Main signals table
-- `status_history` - Status change history
-- `clerk_answers` - Official responses
-- `categories` - Category lookup table
-- `subcategories` - Subcategory lookup table
+- `status_history` - Status change history (requires `--fetch-extras`)
+- `clerk_answers` - Official responses (requires `--fetch-extras`)
+- `categories` - Category lookup table (18 categories)
+- `subcategories` - Subcategory lookup table (97 subcategories)
 - `scrape_progress` - Progress tracking
 - `scrape_errors` - Error log
+
+## Useful SQL Queries
+
+```sql
+-- Count signals by category
+SELECT category_name, COUNT(*) as count
+FROM signals
+GROUP BY category_name
+ORDER BY count DESC;
+
+-- Find bicycle infrastructure signals
+SELECT * FROM signals WHERE subcategory_id = 30271;
+
+-- Signals by district
+SELECT district, COUNT(*) as count
+FROM signals
+WHERE district IS NOT NULL
+GROUP BY district
+ORDER BY count DESC;
+
+-- Signals by year
+SELECT substr(registration_date, 7, 4) as year, COUNT(*) as count
+FROM signals
+GROUP BY year
+ORDER BY year;
+
+-- Resolution rate by status
+SELECT status, COUNT(*) as count,
+       ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM signals), 2) as pct
+FROM signals
+GROUP BY status
+ORDER BY count DESC;
+```
 
 ## Notes
 
 - The scraper respects rate limits with configurable delays
 - Cookies may expire; you'll need to refresh them periodically
 - Signal IDs are sequential but some may be missing (deleted or never created)
-- The bicycle infrastructure category (30271) is under Road Infrastructure (3)
 - All dates in the database are in Bulgarian format (DD.MM.YYYY HH:MM:SS)
+- The bicycle infrastructure category was added around June 2021
+
+## Development
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for technical details, API documentation, and known issues.
+
+## Reports
+
+Analysis reports are available in the `exports/` directory:
+- `bicycle_infrastructure_report_bg.md` - Full analysis in Bulgarian
 
 ## License
 

@@ -168,11 +168,20 @@ export class SignalParser {
 
     for (let i = 0; i < labels.length; i++) {
       const labelEl = labels.eq(i);
+
+      // Skip if the label text doesn't actually start with or equal the search label
+      // This prevents matching "Местоположение на проблема" when searching for "Местоположение"
+      const labelText = labelEl.text().trim();
+      if (!labelText.startsWith(label) && labelText !== label) {
+        continue;
+      }
+
       // Get the sibling div with col-md-10 class
       const valueDiv = labelEl.siblings('.col-md-10').first();
       if (valueDiv.length) {
         const text = valueDiv.text().trim();
-        if (text && text.length > 0) {
+        // Add max length check to avoid grabbing huge chunks of content
+        if (text && text.length > 0 && text.length < 1000) {
           return text;
         }
       }
@@ -187,16 +196,22 @@ export class SignalParser {
       }
     }
 
-    // Also try within .row divs
+    // Also try within .row divs - but be more careful
     const rows = $('.row');
     for (let i = 0; i < rows.length; i++) {
       const row = rows.eq(i);
-      const rowText = row.text();
-      if (rowText.includes(label)) {
+      // Only match if the row contains a label element with this text
+      const rowLabel = row.find('label').filter(function() {
+        const text = $(this).text().trim();
+        return text.startsWith(label) || text === label;
+      }).first();
+
+      if (rowLabel.length) {
         const valueDiv = row.find('.col-md-10').first();
         if (valueDiv.length) {
           const text = valueDiv.text().trim();
-          if (text && text.length > 0) {
+          // Add max length check
+          if (text && text.length > 0 && text.length < 1000) {
             return text;
           }
         }
